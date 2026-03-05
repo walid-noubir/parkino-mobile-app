@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "909198990943",
+    "project_id": "parkino-cloud",
+    "storage_bucket": "parkino-cloud.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:909198990943:android:8293f4b889729a122105ea",
+        "android_client_info": {
+          "package_name": "com.example.test_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBlTDF5sMhq7PUvKufedZ32TGz_bTJFafg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
