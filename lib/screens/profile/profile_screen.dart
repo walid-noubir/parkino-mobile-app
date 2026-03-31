@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../screens/auth/sign_in_screen.dart';
+import '../../providers/firebase_auth_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -14,6 +20,15 @@ class _ProfileScreenState extends State<ProfileScreen>
   static const Color _goldenYellow = Color(0xFFFFC107);
   late AnimationController _slideController;
   late Animation<Offset> _slideAnimation;
+  
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _imagePicker = ImagePicker();
+  
+  String? _profileImageUrl;
+  String? _displayName;
+  String? _email;
+  bool _isLoadingImage = false;
 
   @override
   void initState() {
@@ -25,6 +40,132 @@ class _ProfileScreenState extends State<ProfileScreen>
     _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
         .animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOut));
     _slideController.forward();
+    
+    // Load user data from Firestore
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+          setState(() {
+            _displayName = userDoc.data()?['displayName'] ?? user.displayName ?? 'User';
+            _email = userDoc.data()?['email'] ?? user.email ?? '';
+            _profileImageUrl = userDoc.data()?['photoUrl'];
+          });
+        } else {
+          setState(() {
+            _displayName = user.displayName ?? 'User';
+            _email = user.email ?? '';
+          });
+        }
+      }
+    } catch (e) {
+      print('❌ Error loading user data: $e');
+    }
+  }
+
+  Future<void> _pickAndUploadProfileImage() async {
+    try {
+      // Pick image from gallery
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) return;
+
+      setState(() {
+        _isLoadingImage = true;
+      });
+
+      final user = _auth.currentUser;
+      if (user == null) {
+        setState(() => _isLoadingImage = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('❌ User not authenticated')),
+          );
+        }
+        return;
+      }
+
+      print('🚀 Starting upload for user: ${user.uid}');
+
+      // Read file bytes (works on web and mobile)
+      final bytes = await pickedFile.readAsBytes();
+      print('📁 File size: ${bytes.length} bytes');
+
+      // Supabase Storage path: {uid}/profile.jpg (matches RLS policy)
+      final filePath = '${user.uid}/profile.jpg';
+      final supabaseClient = Supabase.instance.client;
+
+      // Upload binary data to Supabase (compatible with web and mobile)
+      try {
+        await supabaseClient.storage.from('profile-images').uploadBinary(
+          filePath,
+          bytes,
+          fileOptions: const FileOptions(
+            cacheControl: '3600',
+            upsert: true, // Replace if exists
+          ),
+        );
+        print('✅ Image uploaded to: $filePath');
+      } catch (uploadError) {
+        print('❌ Supabase upload error: $uploadError');
+        rethrow;
+      }
+
+      // Get public URL
+      final downloadUrl = supabaseClient.storage
+          .from('profile-images')
+          .getPublicUrl(filePath);
+      print('✅ Public URL: $downloadUrl');
+
+      // Update Firestore with new profile image URL
+      try {
+        await _firestore.collection('users').doc(user.uid).set({
+          'photoUrl': downloadUrl,
+          'displayName': user.displayName ?? 'User',
+          'email': user.email ?? '',
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        print('✅ Firestore updated with photo URL');
+      } catch (firestoreError) {
+        print('❌ Firestore update error: $firestoreError');
+        rethrow;
+      }
+
+      setState(() {
+        _profileImageUrl = downloadUrl;
+        _isLoadingImage = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Profile image updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Error uploading profile image: $e');
+      setState(() {
+        _isLoadingImage = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -66,8 +207,8 @@ class _ProfileScreenState extends State<ProfileScreen>
         children: [
           Image.asset(
             'assets/images/parkino_logo.png',
-            width: 100,
-            height: 100,
+            width: 130,
+            height: 130,
             fit: BoxFit.contain,
           ),
           const SizedBox(height: 16),
@@ -139,40 +280,75 @@ class _ProfileScreenState extends State<ProfileScreen>
                       ),
                     ],
                   ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.person,
-                      size: 50,
-                      color: _primaryDarkBlue,
-                    ),
-                  ),
+                  child: _profileImageUrl != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(50),
+                          child: Image.network(
+                            _profileImageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Center(
+                                child: Icon(
+                                  Icons.person,
+                                  size: 50,
+                                  color: _primaryDarkBlue,
+                                ),
+                              );
+                            },
+                          ),
+                        )
+                      : const Center(
+                          child: Icon(
+                            Icons.person,
+                            size: 50,
+                            color: _primaryDarkBlue,
+                          ),
+                        ),
                 ),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [_goldenYellow, Color(0xFFFFB800)],
-                    ),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _isLoadingImage ? null : _pickAndUploadProfileImage,
                     borderRadius: BorderRadius.circular(25),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _goldenYellow.withValues(alpha: 0.5),
-                        blurRadius: 12,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [_goldenYellow, Color(0xFFFFB800)],
+                        ),
+                        borderRadius: BorderRadius.circular(25),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _goldenYellow.withValues(alpha: 0.5),
+                            blurRadius: 12,
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.edit,
-                    size: 18,
-                    color: _primaryDarkBlue,
+                      child: _isLoadingImage
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  _primaryDarkBlue,
+                                ),
+                              ),
+                            )
+                          : const Icon(
+                              Icons.edit,
+                              size: 18,
+                              color: _primaryDarkBlue,
+                            ),
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            const Text(
-              'John Doe',
-              style: TextStyle(
+            Text(
+              _displayName ?? 'User',
+              style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w900,
                 color: _primaryDarkBlue,
@@ -180,9 +356,9 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'john.doe@parkino.com',
-              style: TextStyle(
+            Text(
+              _email ?? '',
+              style: const TextStyle(
                 fontSize: 14,
                 color: Color(0xFF999999),
                 fontWeight: FontWeight.w500,

@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'localization/app_localizations.dart';
 import 'providers/language_provider.dart';
 import 'providers/firebase_auth_provider.dart';
 import 'screens/auth/sign_in_screen.dart';
 import 'screens/auth/password_reset_screen.dart';
 import 'firebase_options.dart';
+import 'services/parking_repository.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +23,27 @@ void main() async {
     print('✅ Firebase initialisé avec succès');
   } catch (e) {
     print('❌ Erreur lors de l\'initialisation de Firebase: $e');
+  }
+
+  // 🚀 Initialize Supabase
+  try {
+    await Supabase.initialize(
+      url: 'https://mjkpbenrruzjlwdwvaaw.supabase.co',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1qa3BiZW5ycnV6amx3ZHd2YWF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MTA1NzQsImV4cCI6MjA4ODk4NjU3NH0.sU7wtKmktoH5wAGcDYJ_XWqiQjlD2CkV4Vwqrv_5nDs',
+    );
+    print('✅ Supabase initialisé avec succès');
+  } catch (e) {
+    print('❌ Erreur lors de l\'initialisation de Supabase: $e');
+  }
+
+  // 🚀 Initialize parking structure
+  try {
+    final repository = ParkingRepository();
+    print('🚀 Initializing parking structure...');
+    await repository.createMainParkingFloors();
+    print('✅ Parking structure ready!');
+  } catch (e) {
+    print('❌ Error initializing parking structure: $e');
   }
   
   SystemChrome.setPreferredOrientations([

@@ -102,8 +102,8 @@ class _HomeScreenState extends State<HomeScreen>
           const SizedBox(height: 12),
           Image.asset(
             'assets/images/parkino_logo.png',
-            width: 80,
-            height: 80,
+            width: 110,
+            height: 110,
             fit: BoxFit.contain,
           ),
           const SizedBox(height: 12),

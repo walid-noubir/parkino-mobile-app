@@ -67,8 +67,8 @@ class _StatsScreenState extends State<StatsScreen>
         children: [
           Image.asset(
             'assets/images/parkino_logo.png',
-            width: 100,
-            height: 100,
+            width: 130,
+            height: 130,
             fit: BoxFit.contain,
           ),
           const SizedBox(height: 16),
@@ -218,7 +218,7 @@ class _StatsScreenState extends State<StatsScreen>
       crossAxisCount: 2,
       crossAxisSpacing: 16,
       mainAxisSpacing: 16,
-      childAspectRatio: 1.1,
+      childAspectRatio: 0.75,
       children: [
         _buildStatCard(
           icon: Icons.local_parking_rounded,

@@ -465,8 +465,8 @@ class _SignInScreenState extends State<SignInScreen>
               scale: value,
               child: Image.asset(
                 'assets/images/parkino_logo.png',
-                width: 100,
-                height: 100,
+                width: 130,
+                height: 130,
                 fit: BoxFit.contain,
               ),
             );

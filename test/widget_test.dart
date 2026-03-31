@@ -8,7 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:test_app/main.dart';
+import 'package:parkino/main.dart';
 
 void main() {
   testWidgets('Parkino app loads successfully', (WidgetTester tester) async {
