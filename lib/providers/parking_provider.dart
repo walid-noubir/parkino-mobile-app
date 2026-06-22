@@ -10,7 +10,7 @@ class ParkingProvider extends ChangeNotifier {
   ParkingData _parkingData = ParkingData(summary: ParkingSummary(
     availableSpots: 0,
     occupiedSpots: 0,
-    totalSpots: 14,
+    totalSpots: 11,
     updatedAt: DateTime.now(),
   ), slots: []);
   

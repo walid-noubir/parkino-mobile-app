@@ -33,6 +33,9 @@ class ParkingSlot {
   final double distanceCm;
   final DateTime updatedAt;
   final int floor;
+  final bool isReserved; // Indique si la place est réservée
+  final String? reservationCode; // Code de réservation (4 chiffres)
+  final String? reservationId; // ID de la réservation
 
   ParkingSlot({
     required this.slotNumber,
@@ -40,6 +43,9 @@ class ParkingSlot {
     required this.distanceCm,
     required this.updatedAt,
     required this.floor,
+    this.isReserved = false,
+    this.reservationCode,
+    this.reservationId,
   });
 
   /// Create from Firestore document
@@ -68,13 +74,40 @@ class ParkingSlot {
       distanceCm: (data['distance_cm'] as num?)?.toDouble() ?? 0.0,
       updatedAt: (data['updatedAt'] as dynamic)?.toDate() ?? DateTime.now(),
       floor: floor,
+      isReserved: data['isReserved'] as bool? ?? false,
+      reservationCode: data['reservationCode'] as String?,
+      reservationId: data['reservationId'] as String?,
     );
   }
 
-  /// Helper: returns "1/1" if free, "0/1" if occupied
-  String get availabilityDisplay => occupied ? '0/1' : '1/1';
+  /// Helper: retourne le statut de la place
+  String get statusDisplay {
+    if (occupied) return 'Occupée';
+    if (isReserved) return 'Réservée';
+    return 'Libre';
+  }
+
+  /// Helper: returns "1/1" if free, "0/1" if occupied or reserved
+  String get availabilityDisplay => (occupied || isReserved) ? '0/1' : '1/1';
+
+  /// Helper: returns localization key for status text
+  String get statusLocalizationKey {
+    if (occupied) return 'occupied';
+    if (isReserved) return 'reserved_status';
+    return 'free';
+  }
+
+  /// Helper: returns color for status display
+  String get statusColorHex {
+    if (occupied) return 'FF0000'; // Red
+    if (isReserved) return '2196F3'; // Blue
+    return '4CAF50'; // Green
+  }
+
+  /// Vérifie si la place est disponible pour réservation
+  bool get canBeReserved => !occupied && !isReserved;
 
   @override
   String toString() =>
-      'Slot $slotNumber(occupied: $occupied, distance: ${distanceCm.toStringAsFixed(1)}cm)';
+      'Slot $slotNumber(occupied: $occupied, reserved: $isReserved, distance: ${distanceCm.toStringAsFixed(1)}cm)';
 }

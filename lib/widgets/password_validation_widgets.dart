@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/password_validation_service.dart';
+import '../localization/app_localizations.dart';
 
 /// Widget that displays password validation requirements
 /// Shows a checklist of password requirements with visual feedback
@@ -24,7 +25,7 @@ class PasswordRequirementsWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Password Requirements',
+          AppLocalizations.t('password_requirements'),
           style: labelTextStyle ??
               TextStyle(
                 fontSize: 12,
@@ -77,7 +78,7 @@ class PasswordRequirementsWidget extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: Text(
-            req.label,
+            AppLocalizations.t(req.label),
             style: (requirementTextStyle ??
                     TextStyle(
                       fontSize: 12,
@@ -97,7 +98,7 @@ class PasswordRequirementsWidget extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              'Optional',
+              AppLocalizations.t('password_optional'),
               style: TextStyle(
                 fontSize: 10,
                 color: Colors.grey.shade600,
@@ -126,7 +127,8 @@ class PasswordStrengthIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final strength = PasswordValidationService.calculatePasswordStrength(password);
-    final label = PasswordValidationService.getPasswordStrengthLabel(strength);
+    final labelKey = PasswordValidationService.getPasswordStrengthLabel(strength);
+    final label = AppLocalizations.t(labelKey);
     final colorString = PasswordValidationService.getPasswordStrengthColor(strength);
 
     final strengthColor = _getColorFromString(colorString);
@@ -138,7 +140,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Password strength',
+              AppLocalizations.t('password_strength'),
               style: labelTextStyle ??
                   TextStyle(
                     fontSize: 12,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
+import '../theme/parkino_theme.dart';
 
 /// Language Settings Bottom Sheet
 /// Allows users to change app language between English, French, and Arabic
@@ -31,7 +32,7 @@ class _LanguageSettingsSheetState extends State<LanguageSettingsSheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: ParkinoTheme.white,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(24),
           topRight: Radius.circular(24),
@@ -74,8 +75,8 @@ class _LanguageSettingsSheetState extends State<LanguageSettingsSheet> {
                 child: GestureDetector(
                   onTap: () {
                     if (!isSelected) {
+                      // Don't pop here - let the callback handle navigation
                       widget.onLanguageChanged(lang['code']!);
-                      Navigator.pop(context);
                     }
                   },
                   child: Container(
@@ -121,7 +122,7 @@ class _LanguageSettingsSheetState extends State<LanguageSettingsSheet> {
                             ),
                             child: const Icon(
                               Icons.check,
-                              color: Colors.white,
+                              color: ParkinoTheme.white,
                               size: 20,
                             ),
                           ),

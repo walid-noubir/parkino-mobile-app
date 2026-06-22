@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../localization/app_localizations.dart';
 import '../../services/parking_repository.dart';
 import '../../services/parking_models.dart';
+import '../../models/slot_reservation.dart';
+import '../../providers/language_provider.dart';
+import '../../providers/notification_provider.dart';
+import '../../providers/slot_reservation_provider.dart';
+import '../../providers/firebase_auth_provider.dart';
+import '../../theme/parkino_theme.dart';
 
 class ParkingMapScreen extends StatefulWidget {
   const ParkingMapScreen({super.key});
@@ -29,6 +37,10 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
   void initState() {
     super.initState();
     _setupAnimation();
+    // Cleanup expired reservations on startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<SlotReservationProvider>().cleanupExpiredReservations();
+    });
   }
 
   void _setupAnimation() {
@@ -89,9 +101,13 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Watch language provider - this triggers rebuild when language changes
+    final currentLocale = context.watch<LanguageProvider>().locale;
+    
     /// Use combined stream to display both summary and slots
     return Scaffold(
-      backgroundColor: Colors.white,
+      key: ValueKey(currentLocale),
+      backgroundColor: ParkinoTheme.white,
       body: SafeArea(
         child: StreamBuilder<ParkingData>(
           stream: _repository.getCombinedStream(),
@@ -165,9 +181,9 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
                 fit: BoxFit.contain,
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Parking Map',
-                style: TextStyle(
+              Text(
+                AppLocalizations.t('parking_map'),
+                style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: _primaryDarkBlue,
@@ -176,7 +192,7 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
               ),
               const SizedBox(height: 4),
               Text(
-                '${summary.availableSpots} / ${summary.totalSpots} places disponibles',
+                '${summary.availableSpots} / ${summary.totalSpots} ${AppLocalizations.t('places_available')}',
                 style: const TextStyle(
                   fontSize: 13,
                   color: Color(0xFF999999),
@@ -185,7 +201,7 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                'Mis à jour: ${_formatTime(summary.updatedAt)}',
+                '${AppLocalizations.t('updated')}: ${_formatTime(summary.updatedAt)}',
                 style: const TextStyle(
                   fontSize: 10,
                   color: Color(0xFFAAAAAA),
@@ -263,9 +279,9 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
       ),
       child: Column(
         children: [
-          const Text(
-            'Select Floor',
-            style: TextStyle(
+          Text(
+            AppLocalizations.t('select_floor'),
+            style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: _primaryDarkBlue,
@@ -279,13 +295,13 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
               SizedBox(
                 width: 120,
                 height: 48,
-                child: _buildFloorButton('Floor 1', 1),
+                child: _buildFloorButton(AppLocalizations.t('floor_1'), 1),
               ),
               const SizedBox(width: 16),
               SizedBox(
                 width: 120,
                 height: 48,
-                child: _buildFloorButton('Floor 2', 2),
+                child: _buildFloorButton(AppLocalizations.t('floor_2'), 2),
               ),
             ],
           ),
@@ -321,13 +337,13 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.white.withValues(alpha: 0.08),
-                      Colors.white.withValues(alpha: 0.04),
+                      ParkinoTheme.white.withValues(alpha: 0.08),
+                      ParkinoTheme.white.withValues(alpha: 0.04),
                     ],
                   ),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isSelected ? _goldenYellow : Colors.white.withValues(alpha: 0.2),
+              color: isSelected ? _goldenYellow : ParkinoTheme.white.withValues(alpha: 0.2),
               width: isSelected ? 2.5 : 1.5,
             ),
             boxShadow: isSelected
@@ -375,31 +391,54 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.white.withValues(alpha: 0.12),
-            Colors.white.withValues(alpha: 0.08),
+            ParkinoTheme.white.withValues(alpha: 0.12),
+            ParkinoTheme.white.withValues(alpha: 0.08),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.15),
+          color: ParkinoTheme.white.withValues(alpha: 0.15),
           width: 1.5,
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: Column(
         children: [
-          _buildLegendItem(
-            color: Colors.green,
-            label: 'Free / Libre',
+          Text(
+            AppLocalizations.t('legend'),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: ParkinoTheme.white,
+              letterSpacing: 0.3,
+            ),
           ),
-          Container(
-            width: 1,
-            height: 30,
-            color: Colors.white.withValues(alpha: 0.2),
-          ),
-          _buildLegendItem(
-            color: Colors.red,
-            label: 'Occupied / Occupé',
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildLegendItem(
+                color: Colors.green,
+                label: AppLocalizations.t('free'),
+              ),
+              Container(
+                width: 1,
+                height: 30,
+                color: ParkinoTheme.white.withValues(alpha: 0.2),
+              ),
+              _buildLegendItem(
+                color: Colors.blue,
+                label: 'Réservée',
+              ),
+              Container(
+                width: 1,
+                height: 30,
+                color: ParkinoTheme.white.withValues(alpha: 0.2),
+              ),
+              _buildLegendItem(
+                color: Colors.red,
+                label: AppLocalizations.t('occupied'),
+              ),
+            ],
           ),
         ],
       ),
@@ -407,7 +446,16 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
   }
 
   Widget _buildLegendItem({required Color color, required String label}) {
-    final isGreen = color == Colors.green;
+    // Déterminer le texte inférieur selon la couleur
+    String statusText;
+    if (color == Colors.green) {
+      statusText = AppLocalizations.t('free').toUpperCase();
+    } else if (color == Colors.blue) {
+      statusText = AppLocalizations.t('reserved_status');
+    } else {
+      statusText = AppLocalizations.t('busy').toUpperCase();
+    }
+
     return Row(
       children: [
         Container(
@@ -435,17 +483,17 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: ParkinoTheme.white,
                 letterSpacing: 0.3,
               ),
             ),
             const SizedBox(height: 2),
             Text(
-              isGreen ? 'FREE' : 'BUSY',
-              style: const TextStyle(
+              statusText,
+              style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: Colors.white70,
+                color: color,
                 letterSpacing: 0.5,
               ),
             ),
@@ -490,7 +538,27 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
   }
 
   Widget _buildParkingSpot({required ParkingSlot slot, int index = 0}) {
-    final isFree = !slot.occupied;
+    // Déterminer la couleur selon l'état:
+    // 🔴 ROUGE   = occupied (quelqu'un l'utilise)
+    // 🔵 BLEU    = réservé mais pas occupé (quelqu'un l'a réservé)
+    // 🟢 VERT    = libre et non réservé
+    final isOccupied = slot.occupied;  // status='occupied'
+    final isReserved = slot.isReserved; // status='free' mais réservé
+    final isFree = !isOccupied && !isReserved;
+
+    late List<Color> gradientColors;
+    late Color shadowColor;
+    
+    if (isOccupied) {
+      gradientColors = [Colors.red.shade400, Colors.red.shade600];
+      shadowColor = Colors.red;        // 🔴 ROUGE pour occupé
+    } else if (isReserved) {
+      gradientColors = [Colors.blue.shade400, Colors.blue.shade600];
+      shadowColor = Colors.blue;       // 🔵 BLEU pour réservé
+    } else {
+      gradientColors = [Colors.green.shade400, Colors.green.shade600];
+      shadowColor = Colors.green;      // 🟢 VERT pour libre
+    }
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
@@ -510,15 +578,12 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: isFree
-                ? [Colors.green.shade400, Colors.green.shade600]
-                : [Colors.red.shade400, Colors.red.shade600],
+            colors: gradientColors,
           ),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: (isFree ? Colors.green : Colors.red)
-                  .withValues(alpha: 0.4),
+              color: shadowColor.withValues(alpha: 0.4),
               blurRadius: 12,
               offset: const Offset(0, 6),
             ),
@@ -528,7 +593,18 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
           color: Colors.transparent,
           child: InkWell(
             onTap: () {
-              _showSpotDetails(slot: slot);
+              if (isFree) {
+                _handleSlotTap(slot: slot);
+              } else if (isReserved) {
+                _handleSlotTap(slot: slot);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(AppLocalizations.t('spot_occupied')),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             borderRadius: BorderRadius.circular(16),
             child: Column(
@@ -539,17 +615,17 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
                   style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
-                    color: Colors.white,
+                    color: ParkinoTheme.white,
                     letterSpacing: 1,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  slot.availabilityDisplay,
-                  style: const TextStyle(
+                  AppLocalizations.t(slot.statusLocalizationKey),
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    color: isFree ? Colors.green : (isReserved ? Colors.blue : Colors.red),
                     letterSpacing: 0.5,
                   ),
                 ),
@@ -561,68 +637,534 @@ class _ParkingMapScreenState extends State<ParkingMapScreen>
     );
   }
 
-  void _showSpotDetails({required ParkingSlot slot}) {
+  /// Handle slot tap - check if already reserved or show confirmation dialog
+  Future<void> _handleSlotTap({required ParkingSlot slot}) async {
+    // Empêcher les réservations au floor 1
+    if (slot.floor == 1) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.t('floor_1_not_available')),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    final reservationProvider = context.read<SlotReservationProvider>();
+    final currentUserId = context.read<FirebaseAuthProvider>().user?.uid;
+    final slotId = 'slot_${slot.slotNumber}';
+
+    try {
+      // Check if this slot already has an active reservation
+      final hasReservation = await reservationProvider.hasActiveReservationForSlot(slotId);
+
+      if (!mounted) return;
+
+      if (hasReservation) {
+        // Get the reservation details to show the code
+        final existingReservation =
+            await reservationProvider.getReservationForSlot(slotId);
+
+        if (!mounted) return;
+
+        // Show "Already Reserved" dialog
+        _showAlreadyReservedDialog(
+          slot: slot,
+          reservation: existingReservation,
+          currentUserId: currentUserId,
+        );
+      } else {
+        // Show confirmation dialog for new reservation
+        _showReservationConfirmationDialog(slot: slot);
+      }
+    } catch (e) {
+      print(' Error handling slot tap: $e');
+    }
+  }
+
+  /// Show dialog for already reserved spot
+  void _showAlreadyReservedDialog({
+    required ParkingSlot slot,
+    required SlotReservation? reservation,
+    required String? currentUserId,
+  }) {
+    // Vérifier si cette réservation appartient à l'utilisateur actuel
+    final isMyReservation = reservation?.userId == currentUserId;
+    
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context) => AlertDialog(
-        title: Text('Spot #${slot.slotNumber} Details'),
+        backgroundColor: const Color(0xFFFAFAFA),
+        titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              isMyReservation
+                  ? AppLocalizations.t('your_reservation')
+                  : AppLocalizations.t('reserved_spot'),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0B2A4A),
+              ),
+            ),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => Navigator.pop(context),
+                borderRadius: BorderRadius.circular(50),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  child: const Icon(
+                    Icons.close,
+                    size: 24,
+                    color: Colors.red,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildDetailRow(
-              'Status:',
-              slot.occupied ? '🔴 OCCUPIED' : '🟢 FREE',
+            Icon(
+              isMyReservation ? Icons.check_circle_outline : Icons.info_outline,
+              size: 64,
+              color: isMyReservation ? Colors.blue : Colors.orange,
             ),
-            const SizedBox(height: 12),
-            _buildDetailRow(
-              'Availability:',
-              '${slot.availabilityDisplay} - ${slot.occupied ? 'Not Available' : 'Available'}',
+            const SizedBox(height: 16),
+            Text(
+              isMyReservation
+                  ? AppLocalizations.t('already_reserved')
+                  : AppLocalizations.t('reserved_by_other'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF0B2A4A),
+              ),
             ),
-            const SizedBox(height: 12),
-            _buildDetailRow(
-              'Distance:',
-              '${slot.distanceCm.toStringAsFixed(1)} cm',
+            const SizedBox(height: 16),
+            if (reservation != null) ...[
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: (isMyReservation ? Colors.blue : Colors.orange).shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: (isMyReservation ? Colors.blue : Colors.orange).shade300,
+                    width: 2,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      '${AppLocalizations.t('spot')} #${slot.slotNumber}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0B2A4A),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (isMyReservation) ...[
+                      Text(
+                        AppLocalizations.t('your_code'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        reservation.code,
+                        style: const TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFFFC107),
+                          letterSpacing: 6,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Valide pour: ${reservation.timeRemaining}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ] else ...[
+                      Text(
+                        'Veuillez choisir une autre place.',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ] else
+              const Text(
+                'Les détails de la réservation n\'ont pu être chargés.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
+              ),
+          ],
+        ),
+        actions: [],
+      ),
+    );
+  }
+
+  /// Show confirmation dialog BEFORE reservation
+  Future<void> _showReservationConfirmationDialog({required ParkingSlot slot}) async {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Confirmer la réservation',
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF0B2A4A),
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.help_outline,
+              size: 64,
+              color: Color(0xFFFFC107),
             ),
-            const SizedBox(height: 12),
-            _buildDetailRow(
-              'Updated:',
-              _formatTime(slot.updatedAt),
+            const SizedBox(height: 16),
+            Text(
+              'Voulez-vous réserver cette place ?',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.green.shade300,
+                  width: 2,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    '${AppLocalizations.t('spot')} #${slot.slotNumber}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0B2A4A),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Durée: 5 minutes',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
-          ElevatedButton(
+          TextButton(
             onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0B2A4A),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
             ),
-            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _performReservation(slot: slot);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            ),
+            child: const Text(
+              'Réserver',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Row(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF0B2A4A),
+  /// Perform the actual reservation after user confirmation
+  Future<void> _performReservation({required ParkingSlot slot}) async {
+    final reservationProvider = context.read<SlotReservationProvider>();
+    
+    // Check if user already has an active reservation
+    if (reservationProvider.currentReservation != null && 
+        !reservationProvider.currentReservation!.isExpired) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.t('active_reservation_exists')
           ),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 4),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(color: Colors.black87),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
+      );
+      return;
+    }
+    
+    // Show loading indicator
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
     );
+
+    try {
+      // Get the authenticated user's ID
+      final userId = context.read<FirebaseAuthProvider>().user?.uid;
+      if (userId == null) {
+        if (!mounted) return;
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.t('error_not_authenticated')),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      await reservationProvider.reserveSlot(
+        slotId: 'slot_${slot.slotNumber}',
+        slotNumber: slot.slotNumber,
+        userId: userId,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      final reservation = reservationProvider.currentReservation;
+      if (reservation != null) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            backgroundColor: const Color(0xFFFAFAFA),
+            titlePadding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  AppLocalizations.t('reservation_confirmed'),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0B2A4A),
+                  ),
+                ),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => Navigator.pop(context),
+                    borderRadius: BorderRadius.circular(50),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      child: const Icon(
+                        Icons.close,
+                        size: 24,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.check_circle_outline,
+                  size: 64,
+                  color: Colors.green,
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  '${AppLocalizations.t('spot')} #${reservation.slotNumber}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0B2A4A).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFFFC107),
+                      width: 2,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        AppLocalizations.t('your_code'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        reservation.code,
+                        style: const TextStyle(
+                          fontSize: 48,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFFFFC107),
+                          letterSpacing: 8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '⏱️ ${AppLocalizations.t('valid_5_minutes')}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.orange,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  reservation.timeRemaining,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+            actions: [],
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Close loading dialog
+
+      // Show error message
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: Text(
+            AppLocalizations.t('reservation_error_title'),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppLocalizations.t('reservation_error_message'),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.red.shade300,
+                  ),
+                ),
+                child: Text(
+                  _formatErrorMessage(e.toString()),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.red,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0B2A4A),
+              ),
+              child: const Text('Fermer'),
+            ),
+          ],
+        ),
+      );
+    }
   }
+
+  /// Format error message for display
+  String _formatErrorMessage(String errorText) {
+    if (errorText.contains('already reserved')) {
+      return 'Cette place a déjà été réservée.\nRafraîchissez la page.';
+    } else if (errorText.contains('already occupied')) {
+      return 'Cette place est occupée.';
+    } else if (errorText.contains('does not exist')) {
+      return 'Cette place n\'existe pas.';
+    } else if (errorText.contains('PERMISSION_DENIED')) {
+      return 'Permissions Firestore insuffisantes.\nVérifiez les règles de sécurité.';
+    }
+    return errorText;
+  }
+
+
 }

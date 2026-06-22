@@ -47,9 +47,9 @@ class ParkingRepository {
         slots: 6,
       );
 
-      print('✅ Main parking structure initialized successfully');
+      print(' Main parking structure initialized successfully');
     } catch (e) {
-      print('❌ Error initializing main parking structure: $e');
+      print(' Error initializing main parking structure: $e');
       rethrow;
     }
   }
@@ -146,14 +146,14 @@ class ParkingRepository {
         print('   ✓ Deleted floor: ${floorDoc.id}');
       }
 
-      print('✅ Old structure deleted');
+      print(' Old structure deleted');
 
       // Create new structure
       await createMainParkingFloors();
 
-      print('✅ Structure recreated successfully');
+      print(' Structure recreated successfully');
     } catch (e) {
-      print('❌ Error resetting parking structure: $e');
+      print(' Error resetting parking structure: $e');
       rethrow;
     }
   }
@@ -198,7 +198,7 @@ class ParkingRepository {
     });
   }
 
-  /// Stream of all parking slots from Etage 2 (slot_1..slot_6)
+  /// Stream of all parking slots from Etage 2 (slot_1..slot_3)
   /// Listens to: parkings/main_parking/floors/etage_2/slots subcollection
   Stream<List<ParkingSlot>> getFloor2SlotsStream() {
     return _firestore
@@ -233,9 +233,9 @@ class ParkingRepository {
         return Stream.value(
           ParkingData(
             summary: ParkingSummary(
-              availableSpots: 14,
+              availableSpots: 11,
               occupiedSpots: 0,
-              totalSpots: 14,
+              totalSpots: 11,
               updatedAt: DateTime.now(),
             ),
             slots: [],
@@ -307,6 +307,90 @@ class ParkingRepository {
 
       return floorStatesController.stream;
     });
+  }
+
+  /// Delete ALL Floor 2 data completely from Firestore
+  Future<void> deleteAllFloor2Completely() async {
+    try {
+      print('🗑️ DELETING ALL FLOOR 2 DATA COMPLETELY...');
+      
+      final floor2Ref = _firestore
+          .collection(_parkingsCollection)
+          .doc(_mainParkingDoc)
+          .collection(_floorsCollection)
+          .doc(_etage2);
+
+      // Delete all slots from floor 2
+      final slotsSnapshot = await floor2Ref.collection(_slotsSubCollection).get();
+      int slotsDeleted = 0;
+      for (var doc in slotsSnapshot.docs) {
+        await doc.reference.delete();
+        slotsDeleted++;
+        print('   ✓ Deleted ${doc.id} from floor 2');
+      }
+
+      // Delete the floor 2 document itself
+      await floor2Ref.delete();
+      print('   ✓ Deleted floor 2 document');
+
+      print(' FLOOR 2 COMPLETELY DELETED ');
+      print('   - $slotsDeleted slots deleted');
+      print('   - Floor document deleted');
+      print('   - Floor 2 is now empty in Firestore');
+    } catch (e) {
+      print(' Error deleting floor 2 completely: $e');
+      rethrow;
+    }
+  }
+
+  /// Recreate Floor 2 with 3 slots and full QR reservation system
+  Future<void> recreateFloor2WithQRSystem() async {
+    try {
+      print('🔄 Recreating Floor 2 with 6 slots...');
+      
+      final floorDocRef = _firestore
+          .collection(_parkingsCollection)
+          .doc(_mainParkingDoc)
+          .collection(_floorsCollection)
+          .doc(_etage2);
+
+      // Create Floor 2 document
+      await floorDocRef.set({
+        'floorNumber': 2,
+        'totalSpots': 6,
+        'availableSpots': 6,
+        'occupiedSpots': 0,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      print('   ✓ Created floor 2 document');
+
+      // Create 6 slots for Floor 2
+      final slotsCollection = floorDocRef.collection(_slotsSubCollection);
+      
+      for (int i = 1; i <= 6; i++) {
+        final slotId = 'slot_$i';
+        await slotsCollection.doc(slotId).set({
+          'slotNumber': i,
+          'floor': 2,
+          'status': 'free',
+          'isReserved': false,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        print('   ✓ Created slot_$i in floor 2');
+      }
+
+      print(' Floor 2 recreated successfully with 6 slots');
+    } catch (e) {
+      print(' Error recreating floor 2: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete extra slots (4, 5, 6) from Etage 2 to keep only 3 slots
+  /// DEPRECATED: Use deleteAllFloor2Completely() instead
+  Future<void> deleteExtraFloor2Slots() async {
+    // This method is deprecated - call deleteAllFloor2Completely instead
+    await deleteAllFloor2Completely();
   }
 }
 

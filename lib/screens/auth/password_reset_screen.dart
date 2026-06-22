@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../localization/app_localizations.dart';
 import '../../services/password_validation_service.dart';
 import '../../widgets/password_validation_widgets.dart';
-import '../../localization/app_localizations.dart';
+import '../../providers/language_provider.dart';
+import '../../theme/parkino_theme.dart';
 
 /// Password reset screen
 /// Displayed when user clicks the password reset link from their email
@@ -85,7 +88,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
           .verifyPasswordResetCode(widget.oobCode);
       setState(() {
         _userEmail = userEmail;
-        debugPrint('✅ Reset code verified for: $userEmail');
+        debugPrint('Reset code verified for: $userEmail');
       });
     } on FirebaseAuthException catch (e) {
       // Don't show error here, let user try to reset anyway
@@ -170,7 +173,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Password Reset Successful! ✅'),
+        title: Text(AppLocalizations.t('password_reset_successful')),
         content: const Text(
           'Your password has been updated successfully.\nYou can now sign in with your new password.',
         ),
@@ -182,7 +185,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: _primaryDarkBlue,
             ),
-            child: const Text('Go to Sign In'),
+            child: Text(AppLocalizations.t('go_to_sign_in')),
           ),
         ],
       ),
@@ -202,10 +205,14 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Watch language provider - this triggers rebuild when language changes
+    final currentLocale = context.watch<LanguageProvider>().locale;
+    
     // Always show the reset form (don't block with error at startup)
     // Firebase will validate the code when we submit
     return Scaffold(
-      backgroundColor: Colors.white,
+      key: ValueKey(currentLocale),
+      backgroundColor: ParkinoTheme.white,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -266,7 +273,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen>
     return Container(
       padding: const EdgeInsets.all(30),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ParkinoTheme.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(

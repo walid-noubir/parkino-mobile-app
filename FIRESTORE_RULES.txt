@@ -1,0 +1,200 @@
+// Firestore Security Rules for Parkino App - PARKING RESERVATION SYSTEM
+// DEVELOPMENT MODE - For testing and initialization
+// Copy this to: Firestore Database → Rules tab
+// Last Updated: 2026-04-14
+// IMPORTANT: Change to PRODUCTION rules after initialization!
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================================
+    // HELPER FUNCTIONS
+    // ============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isUser(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // ============================================================
+    // PARKING SLOTS COLLECTION - PERMISSIVE (DEVELOPMENT)
+    // ============================================================
+    match /parking_slots/{slotId} {
+      allow read: if isAuthenticated();
+      allow create, write: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+    
+    match /parking_slots/{slotId}/{document=**} {
+      allow read, create, write, delete: if isAuthenticated();
+    }
+    
+    // ============================================================
+    // USERS COLLECTION
+    // ============================================================
+    match /users/{userId} {
+      allow read: if isUser(userId) || isAuthenticated();
+      allow write, create: if isUser(userId);
+      allow delete: if isUser(userId);
+    }
+    
+    // ============================================================
+    // RESERVATIONS COLLECTION
+    // ============================================================
+    match /reservations/{reservationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && 
+                               resource.data.userId == request.auth.uid;
+    }
+    
+    match /reservations/{reservationId}/{document=**} {
+      allow read, write, delete: if isAuthenticated();
+    }
+    
+    // ============================================================
+    // PAYMENTS COLLECTION
+    // ============================================================
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && 
+                       resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && 
+                       resource.data.userId == request.auth.uid && 
+                       (resource.data.status == 'failed' || 
+                        resource.data.status == 'pending');
+    }
+    
+    // ============================================================
+    // QR CODES COLLECTION
+    // ============================================================
+    match /qr_codes/{qrCodeId} {
+      allow read, create, write, delete: if isAuthenticated();
+    }
+    
+    // ============================================================
+    // PARKINGS COLLECTION (Development Mode - MUST ALLOW DELETE!)
+    // CRITICAL: Allows deletion of extra slots during initialization
+    // NOTE: Allows UNAUTHENTICATED access during app startup
+    // UPDATED: Supports slot_reservations sub-collection
+    // ============================================================
+    match /parkings/{document=**} {
+      allow read: if true; // Anyone can read
+      allow write, delete: if true; // Anyone can write/delete (dev mode only)
+    }
+    
+    // ============================================================
+    // PARKING SLOTS WITH RESERVATIONS (Nested Structure)
+    // Path: parkings/main_parking/floors/{floor}/slots/{slot}
+    // ============================================================
+    match /parkings/{parkingId}/floors/{floorId}/slots/{slotId} {
+      allow read: if true; // Anyone can read parking slots
+      allow write, delete: if true; // Dev mode - anyone can write
+      
+      // Sub-collection: slot_reservations
+      match /slot_reservations/{reservationId} {
+        allow read: if true; // Anyone can read reservations
+        allow create: if isAuthenticated(); // Create new reservations (authenticated)
+        allow update, delete: if true; // Dev mode - anyone can update/delete
+      }
+    }
+    
+    // Recursive rule for nested structures
+    match /parkings/{parkingId}/{document=**} {
+      allow read: if true;
+      allow write, delete: if true; // Dev mode
+    }
+    
+    // ============================================================
+    // NOTIFICATIONS COLLECTION (Read-Only)
+    // ============================================================
+    match /notifications/{document=**} {
+      allow read: if isAuthenticated();
+      allow write, delete: if false;
+    }
+    
+    // ============================================================
+    // DEFAULT DENY ALL OTHER ACCESS
+    // ============================================================
+    match /{document=**} {
+      allow read, write, delete: if false;
+    }
+  }
+}
+
+
+/*
+╔════════════════════════════════════════════════════════════════╗
+║ PRODUCTION MODE - After initialization succeeds, use this:     ║
+║ (Copy/paste this when app initializes successfully)            ║
+╚════════════════════════════════════════════════════════════════╝
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isUser(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    match /parking_slots/{slotId} {
+      allow read: if isAuthenticated();
+      allow write, delete: if false;
+    }
+    
+    match /users/{userId} {
+      allow read: if isUser(userId);
+      allow write: if isUser(userId);
+      allow delete: if false;
+    }
+    
+    match /reservations/{reservationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && 
+                               resource.data.userId == request.auth.uid;
+    }
+    
+    match /payments/{paymentId} {
+      allow read: if isUser(resource.data.userId);
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+      allow update: if isUser(resource.data.userId);
+      allow delete: if false;
+    }
+    
+    match /qr_codes/{qrCodeId} {
+      allow read: if isAuthenticated();
+      allow create, write, delete: if false;
+    }
+    
+    match /parkings/{document=**} {
+      allow read: if isAuthenticated();
+      allow write, delete: if false;
+    }
+    
+    match /notifications/{document=**} {
+      allow read: if isAuthenticated();
+      allow write, delete: if false;
+    }
+    
+    match /{document=**} {
+      allow read, write, delete: if false;
+    }
+  }
+}
+
+*/
+
+

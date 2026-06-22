@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/firebase_auth_provider.dart';
+import '../providers/reservation_provider.dart';
+import '../localization/app_localizations.dart';
 import '../navigation/main_navigation.dart';
 
 class UserManagementScreen extends StatefulWidget {
@@ -15,7 +17,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('User Management'),
+        title: Text(AppLocalizations.t('user_management')),
         backgroundColor: const Color(0xFF0B2A4A),
       ),
       body: Consumer<FirebaseAuthProvider>(
@@ -46,7 +48,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0B2A4A),
                       ),
-                      child: const Text('Back to Sign In'),
+                      child: Text(AppLocalizations.t('back_to_sign_in')),
                     ),
                   ],
                 ),
@@ -80,7 +82,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         _buildUserInfoRow('UID:', user.uid),
                         _buildUserInfoRow(
                           'Email Verified:',
-                          user.emailVerified ? '✅ Yes' : '❌ No',
+                          user.emailVerified ? 'Yes' : 'No',
                         ),
                         _buildUserInfoRow(
                           'Created:',
@@ -105,7 +107,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     );
                   },
                   icon: const Icon(Icons.home),
-                  label: const Text('Go to Home'),
+                  label: Text(AppLocalizations.t('go_to_home')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0B2A4A),
                     minimumSize: const Size.fromHeight(50),
@@ -115,9 +117,19 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 ElevatedButton.icon(
                   onPressed: () => _showSignOutDialog(context),
                   icon: const Icon(Icons.logout),
-                  label: const Text('Sign Out'),
+                  label: Text(AppLocalizations.t('sign_out')),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
+                    minimumSize: const Size.fromHeight(50),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => _showDeleteFloor2DataDialog(context),
+                  icon: const Icon(Icons.delete_forever),
+                  label: const Text('🗑️ Supprimer Floor 2 (Admin)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
                     minimumSize: const Size.fromHeight(50),
                   ),
                 ),
@@ -163,21 +175,90 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
+          title: Text(AppLocalizations.t('sign_out')),
+          content: Text(AppLocalizations.t('are_you_sure_sign_out')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.t('cancel')),
           ),
           ElevatedButton(
             onPressed: () {
+              // FIX: Reset slot reservation state before signing out
+              context.read<SlotReservationProvider>().resetOnLogout();
               context.read<FirebaseAuthProvider>().signOut();
               Navigator.pop(context);
               Navigator.pop(context);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Sign Out'),
+            child: Text(AppLocalizations.t('sign_out')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteFloor2DataDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('⚠️ SUPPRIMER COMPLÈTEMENT'),
+        content: const Text(
+          'ATTENTION ! Cette action va supprimer DÉFINITIVEMENT :\n\n'
+          '• Les 3 places (B1, B2, B3)\n'
+          '• Toutes les réservations du 2e étage\n'
+          '• Tous les paiements associés\n\n'
+          'Cette opération est IRRÉVERSIBLE !',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              
+              // Afficher un indicateur de chargement
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+              
+              try {
+                // Appeler la méthode de suppression
+                await context.read<ReservationProvider>().deleteAllFloor2Data();
+                
+                // Fermer le chargement
+                Navigator.pop(context);
+                
+                // Afficher le message de succès
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Toutes les données du floor 2 ont été supprimées'),
+                    duration: Duration(seconds: 3),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } catch (e) {
+                // Fermer le chargement
+                Navigator.pop(context);
+                
+                // Afficher le message d'erreur
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Erreur: $e'),
+                    duration: const Duration(seconds: 3),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('SUPPRIMER'),
           ),
         ],
       ),

@@ -1,0 +1,30 @@
+// IMPORTANT: Replace instances in each screen file:
+// The translations have been added to AppLocalizations
+// Now replace hardcoded Text() with AppLocalizations.t() calls
+
+// HOME SCREEN  
+OLD:
+  Text('Parkino', ...)
+  Text('Smart Parking', ...)
+  Text('Parking Status', ...)
+  Text('FULLY OCCUPIED', ...)  
+  Text('SPACES AVAILABLE', ...)
+  Text('FULL', ...)
+  Text('OPEN', ...)
+  Text('AVAILABLE', ...)
+  Text('$_freeSpots of $_totalSpots parking spots', ...)
+  Text('Occupancy: ${occupancyRate.toStringAsFixed(0)}%', ...)
+  Text('Last updated 2 minutes ago', ...)
+  const Text('Occupied Spots', ...)
+
+NEW:
+  Text(AppLocalizations.t('app_title'), ...)
+  Text(AppLocalizations.t('smart_parking'), ...)
+  Text(AppLocalizations.t('parking_status'), ...)
+  Text(isFull ? AppLocalizations.t('fully_occupied') : AppLocalizations.t('spaces_available'), ...)
+  Text(isFull ? AppLocalizations.t('full') : AppLocalizations.t('open'), ...)
+  Text(AppLocalizations.t('available'), ...)
+  Text('$_freeSpots ${AppLocalizations.t('of')}} $_totalSpots...', ...)
+  Text('${AppLocalizations.t('occupancy')}: ${occupancyRate.toStringAsFixed(0)}%', ...)
+  Text(AppLocalizations.t('last_updated'), ...)
+  Text(AppLocalizations.t('occupied_spots'), ...)

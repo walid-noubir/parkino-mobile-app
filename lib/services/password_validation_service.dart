@@ -65,12 +65,12 @@ class PasswordValidationService {
     return strength.clamp(0, 1);
   }
 
-  /// Get password strength label
+  /// Get password strength label (returns localization key)
   static String getPasswordStrengthLabel(double strength) {
-    if (strength < 0.4) return 'Weak';
-    if (strength < 0.7) return 'Fair';
-    if (strength < 0.9) return 'Good';
-    return 'Strong';
+    if (strength < 0.4) return 'password_weak';
+    if (strength < 0.7) return 'password_fair';
+    if (strength < 0.9) return 'password_good';
+    return 'password_strong';
   }
 
   /// Get password strength color
@@ -126,27 +126,27 @@ class PasswordValidationResult {
   bool get isValid =>
       hasMinimumLength && hasLowercase && hasUppercase && hasNumbers;
 
-  /// Get list of validation status strings
+  /// Get list of validation status strings (returns localization keys)
   List<PasswordValidationRequirement> getRequirements() {
     return [
       PasswordValidationRequirement(
-        label: 'At least 8 characters',
+        label: 'at_least_8_chars',
         isValid: hasMinimumLength,
       ),
       PasswordValidationRequirement(
-        label: 'Contains lowercase (a-z)',
+        label: 'contains_lowercase',
         isValid: hasLowercase,
       ),
       PasswordValidationRequirement(
-        label: 'Contains uppercase (A-Z)',
+        label: 'contains_uppercase',
         isValid: hasUppercase,
       ),
       PasswordValidationRequirement(
-        label: 'Contains numbers (0-9)',
+        label: 'contains_numbers',
         isValid: hasNumbers,
       ),
       PasswordValidationRequirement(
-        label: 'Contains special characters (!@#\$%^&*...)',
+        label: 'contains_special',
         isValid: hasSpecialCharacters,
         isOptional: true,
       ),

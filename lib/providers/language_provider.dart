@@ -8,9 +8,10 @@ class LanguageProvider extends ChangeNotifier {
   String get locale => _locale;
 
   void setLocale(String newLocale) {
-    if (['en', 'fr', 'ar'].contains(newLocale)) {
+    if (['en', 'fr', 'ar'].contains(newLocale) && newLocale != _locale) {
       _locale = newLocale;
       AppLocalizations.setLocale(newLocale);
+      // Notify all listeners after the locale change
       notifyListeners();
     }
   }

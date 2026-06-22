@@ -26,10 +26,10 @@ class _MainNavigationState extends State<MainNavigation> {
 
   late final List<Widget> _screens = [
     HomeScreen(onTabChanged: _onChangeTab),
-    const ParkingMapScreen(),
-    const StatsScreen(),
-    const NotificationsScreen(),
-    const ProfileScreen(),
+    ParkingMapScreen(),
+    StatsScreen(),
+    NotificationsScreen(),
+    ProfileScreenModern(),
   ];
 
   void _onItemTapped(int index) {

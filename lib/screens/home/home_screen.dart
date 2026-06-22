@@ -1,5 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:gap/gap.dart';
+import '../../localization/app_localizations.dart';
 import '../../widgets/language_button.dart';
+import '../../widgets/modern_widgets.dart';
+import '../../widgets/reservation_countdown_widget.dart';
+import '../../providers/language_provider.dart';
+import '../../providers/firebase_auth_provider.dart';
+import '../../providers/reservation_notification_provider.dart';
+import '../../providers/parking_provider.dart';
+import '../../theme/parkino_theme.dart';
+
 
 class HomeScreen extends StatefulWidget {
   final Function(int)? onTabChanged;
@@ -10,26 +21,28 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with TickerProviderStateMixin {
-  int _freeSpots = 5;
-  static const int _totalSpots = 8;
-  static const Color _primaryDarkBlue = Color(0xFF0B2A4A);
-  static const Color _goldenYellow = Color(0xFFFFC107);
-  static const Color _lightGray = Color(0xFFF5F5F5);
-  static const Color _accentBlue = Color(0xFF1E88E5);
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
+    
+    // Définir l'utilisateur actuel pour les notifications
+    final userId = context.read<FirebaseAuthProvider>().user?.uid;
+    if (userId != null) {
+      context.read<NotificationProvider>().setCurrentUser(userId);
+      print('👤 Set current user for notifications: $userId');
+    }
+    
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     )..repeat();
-    _pulseAnimation =
-        Tween<double>(begin: 0.95, end: 1.0).animate(_pulseController);
+    _pulseAnimation = Tween<double>(begin: 0.98, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -40,37 +53,55 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isFull = _freeSpots == 0;
-
+    // Watch language provider - this triggers rebuild when language changes
+    final currentLocale = context.watch<LanguageProvider>().locale;
+    
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              ParkinoTheme.primaryDarkBlue.withOpacity(0.03),
+              ParkinoTheme.veryLightGray,
+            ],
+          ),
+        ),
+        child: SafeArea(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header with logo and greeting
-              _buildHeader(),
-              const SizedBox(height: 32),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Main parking status card
-                    _buildMainStatusCard(isFull),
-                    const SizedBox(height: 28),
-                    // Quick stats
-                    _buildStatsRow(),
-                    const SizedBox(height: 28),
-                    // Info cards
-                    _buildInfoCards(),
-                    const SizedBox(height: 28),
-                    // View map button
-                    _buildViewMapButton(),
-                    const SizedBox(height: 32),
-                  ],
+              // Compteur de réservation en haut
+              const ReservationCountdownTimer(),
+              // Contenu principal
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildModernHeader(),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Gap(32),
+                            Consumer<ParkingProvider>(
+                              builder: (context, parkingProvider, child) {
+                                return _buildMainParkingCard(parkingProvider);
+                              },
+                            ),
+                            const Gap(28),
+                              _buildQuickActionsSection(),
+                            const Gap(32),
+                            _buildViewMapButton(),
+                            const Gap(32),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -80,478 +111,494 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildModernHeader() {
     return Container(
-      decoration: const BoxDecoration(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.white, _lightGray],
+          colors: [
+            ParkinoTheme.primaryDarkBlue.withOpacity(0.95),
+            ParkinoTheme.primaryDarkBlue.withOpacity(0.88),
+          ],
         ),
+        boxShadow: [
+          BoxShadow(
+            color: ParkinoTheme.primaryDarkBlue.withOpacity(0.15),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Spacer(),
-              const LanguageButton(),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Image.asset(
-            'assets/images/parkino_logo.png',
-            width: 110,
-            height: 110,
-            fit: BoxFit.contain,
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Parkino',
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w900,
-              color: _primaryDarkBlue,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Smart Parking Management',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF666666),
-              fontWeight: FontWeight.w400,
-              letterSpacing: 0.3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-
-  Widget _buildMainStatusCard(bool isFull) {
-    return ScaleTransition(
-      scale: _pulseAnimation,
-      child: Container(
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 25,
-              offset: const Offset(0, 10),
-            ),
-            BoxShadow(
-              color: _goldenYellow.withValues(alpha: 0.08),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
-            ),
-          ],
-          border: Border.all(
-            color: _lightGray,
-            width: 1,
-          ),
-        ),
-        child: Column(
-          children: [
-            // Status header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Parking Availability',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF999999),
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Current Status',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: _primaryDarkBlue,
-                      ),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isFull
-                          ? [Colors.red.shade400, Colors.red.shade600]
-                          : [
-                              Colors.green.shade400,
-                              Colors.green.shade600,
-                            ],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (isFull ? Colors.red : Colors.green)
-                            .withValues(alpha: 0.3),
-                        blurRadius: 12,
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    isFull ? 'FULL' : 'AVAILABLE',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 36),
-            // Circular progress indicator
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    _primaryDarkBlue.withValues(alpha: 0.05),
-                    _goldenYellow.withValues(alpha: 0.04),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: _goldenYellow.withValues(alpha: 0.15),
-                  width: 2,
-                ),
-              ),
-              child: Column(
+              // Logo + Text
+              Row(
                 children: [
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: 140,
-                        height: 140,
-                        child: CircularProgressIndicator(
-                          value: _freeSpots / _totalSpots,
-                          strokeWidth: 10,
-                          backgroundColor: _primaryDarkBlue.withValues(alpha: 0.1),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            isFull ? Colors.red : _accentBlue,
-                          ),
-                        ),
-                      ),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '$_freeSpots',
-                            style: const TextStyle(
-                              fontSize: 48,
-                              fontWeight: FontWeight.w900,
-                              color: _goldenYellow,
-                              height: 1,
-                            ),
-                          ),
-                          const Text(
-                            'AVAILABLE',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: _primaryDarkBlue,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          ParkinoTheme.goldenYellow.withOpacity(0.2),
+                          ParkinoTheme.goldenYellow.withOpacity(0.1),
                         ],
                       ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: ParkinoTheme.goldenYellow.withOpacity(0.3),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Image.asset(
+                      'assets/images/parkino_logo.png',
+                      width: 40,
+                      height: 40,
+                      color: ParkinoTheme.goldenYellow,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  const Gap(12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        AppLocalizations.t('app_name'),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: ParkinoTheme.goldenYellow,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const Gap(2),
+                      Text(
+                        AppLocalizations.t('smart_parking'),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: ParkinoTheme.white.withOpacity(0.7),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    '$_freeSpots out of $_totalSpots parking spots',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: _primaryDarkBlue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Occupancy rate: ${(((_totalSpots - _freeSpots) / _totalSpots) * 100).toStringAsFixed(0)}%',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF999999),
-                      fontWeight: FontWeight.w400,
-                    ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Last updated 2 minutes ago',
-              style: TextStyle(
-                fontSize: 11,
-                color: Color(0xFFBBBBBB),
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ),
+              // Language button
+              const LanguageButton(),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatsRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            'OCCUPIED',
-            '${_totalSpots - _freeSpots}',
-            Icons.local_parking_rounded,
-            Colors.red.shade400,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'AVAILABLE',
-            '$_freeSpots',
-            Icons.check_circle_rounded,
-            Colors.green.shade400,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withValues(alpha: 0.2),
-          width: 1.5,
-        ),
-      ),
+  Widget _buildMainParkingCard(ParkingProvider parkingProvider) {
+    // Get slots for floor 2 (étage 2)
+    final floor2Slots = parkingProvider.getSlotsForFloor(2);
+    
+    // Count slots by status
+    int availableCount = 0;  // Green - libre (not occupied and not reserved)
+    int occupiedCount = 0;   // Red - occupée (occupied)
+    int reservedCount = 0;   // Blue - réservée (reserved)
+    
+    for (var slot in floor2Slots) {
+      if (slot.occupied) {
+        occupiedCount++;
+      } else if (slot.isReserved) {
+        reservedCount++;
+      } else {
+        availableCount++;
+      }
+    }
+    
+    final totalSlots = floor2Slots.length > 0 ? floor2Slots.length : 6;
+    final occupancyPercent = ((occupiedCount + reservedCount) / totalSlots) * 100;
+    final availabilityPercent = (availableCount / totalSlots) * 100;
+    
+    return ModernCard(
+      backgroundColor: ParkinoTheme.white,
+      padding: const EdgeInsets.all(32),
+      borderRadius: const BorderRadius.all(Radius.circular(32)),
+      shadows: ParkinoTheme.modernShadow(elevation: 16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 20,
-            ),
-          ),
-          const SizedBox(height: 12),
+          // Title
           Text(
-            value,
-            style: TextStyle(
-              fontSize: 28,
+            AppLocalizations.t('parking_occupancy'),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w900,
-              color: color,
+              letterSpacing: 0.5,
+              color: ParkinoTheme.primaryDarkBlue,
             ),
           ),
-          const SizedBox(height: 4),
+          const Gap(8),
           Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: _primaryDarkBlue,
-              letterSpacing: 0.3,
+            AppLocalizations.t('floor_2_realtime'),
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: ParkinoTheme.darkGray,
+              fontWeight: FontWeight.w500,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoCards() {
-    return Column(
-      children: [
-        _buildInfoCardItem(
-          icon: Icons.schedule_rounded,
-          iconColor: Colors.orange,
-          title: 'Peak Hours',
-          subtitle: '9 AM - 11 AM & 5 PM - 7 PM',
-          description: 'Expect busy parking times',
-        ),
-        const SizedBox(height: 12),
-        _buildInfoCardItem(
-          icon: Icons.location_on_rounded,
-          iconColor: _accentBlue,
-          title: 'Nearest Spot',
-          subtitle: 'Zone A - Bay 5',
-          description: '45 meters away',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoCardItem({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required String description,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: _lightGray,
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const Gap(36),
+          
+          // Main circular indicator
+          SizedBox(
+            width: 200,
+            height: 200,
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: _primaryDarkBlue,
+                // Background shadow circle
+                Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: ParkinoTheme.primaryDarkBlue.withOpacity(0.12),
+                        blurRadius: 24,
+                        spreadRadius: 8,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: _goldenYellow,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF999999),
-                    fontWeight: FontWeight.w400,
-                  ),
+                // Removed: CircularProgressIndicator (green circle)
+                // Center content
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      AppLocalizations.t('available'),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: ParkinoTheme.successGreen,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const Gap(10),
+                    Text(
+                      '$availableCount',
+                      style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                        color: ParkinoTheme.successGreen,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 60,
+                      ),
+                    ),
+                    const Gap(6),
+                    // Removed: Text showing "of 6 spots"
+                  ],
                 ),
               ],
             ),
           ),
-          Icon(
-            Icons.arrow_forward_ios_rounded,
-            size: 16,
-            color: Color(0xFFDDDDDD),
+          const Gap(40),
+          
+          // Enhanced stats row with three columns
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  ParkinoTheme.primaryDarkBlue.withOpacity(0.04),
+                  ParkinoTheme.successGreen.withOpacity(0.02),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: ParkinoTheme.primaryDarkBlue.withOpacity(0.1),
+                width: 1.5,
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildDetailedStatColumn(
+                  label: AppLocalizations.t('available'),
+                  value: '$availableCount',
+                  percent: '${availabilityPercent.toStringAsFixed(0)}%',
+                  color: ParkinoTheme.successGreen,
+                ),
+                Container(
+                  width: 1.5,
+                  height: 60,
+                  color: ParkinoTheme.mediumGray.withOpacity(0.2),
+                ),
+                _buildDetailedStatColumn(
+                  label: AppLocalizations.t('occupied'),
+                  value: '$occupiedCount',
+                  percent: '${((occupiedCount / totalSlots) * 100).toStringAsFixed(0)}%',
+                  color: ParkinoTheme.errorRed,
+                ),
+                Container(
+                  width: 1.5,
+                  height: 60,
+                  color: ParkinoTheme.mediumGray.withOpacity(0.2),
+                ),
+                _buildDetailedStatColumn(
+                  label: AppLocalizations.t('reserved'),
+                  value: '$reservedCount',
+                  percent: '${((reservedCount / totalSlots) * 100).toStringAsFixed(0)}%',
+                  color: ParkinoTheme.infoBlue,
+                ),
+              ],
+            ),
+          ),
+          const Gap(20),
+          
+          // Live update indicator
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: ParkinoTheme.successGreen,
+                  boxShadow: [
+                    BoxShadow(
+                      color: ParkinoTheme.successGreen.withOpacity(0.6),
+                      blurRadius: 6,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+              ),
+              const Gap(8),
+              Text(
+                AppLocalizations.t('live_update'),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: ParkinoTheme.darkGray,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
+  Widget _buildDetailedStatColumn({
+    required String label,
+    required String value,
+    required String percent,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: ParkinoTheme.darkGray,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const Gap(6),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const Gap(4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: color.withOpacity(0.2),
+              width: 0.5,
+            ),
+          ),
+          child: Text(
+            percent,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickActionsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          AppLocalizations.t('parking_info'),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const Gap(16),
+        _buildEnhancedInfoCard(
+          icon: Icons.schedule_rounded,
+          iconColor: ParkinoTheme.warningOrange,
+          title: AppLocalizations.t('peak_hours_today'),
+          mainValue: AppLocalizations.t('peak_hours_value'),
+          subtitle: AppLocalizations.t('high_activity'),
+        ),
+        const Gap(12),
+        _buildEnhancedInfoCard(
+          icon: Icons.trending_up_rounded,
+          iconColor: ParkinoTheme.infoBlue,
+          title: AppLocalizations.t('current_status'),
+          mainValue: AppLocalizations.t('parking_available'),
+          subtitle: AppLocalizations.t('parking_open'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEnhancedInfoCard({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String mainValue,
+    required String subtitle,
+  }) {
+    return ModernCard(
+      backgroundColor: ParkinoTheme.white,
+      padding: const EdgeInsets.all(18),
+      borderRadius: const BorderRadius.all(Radius.circular(18)),
+      shadows: ParkinoTheme.modernShadow(elevation: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      iconColor.withOpacity(0.2),
+                      iconColor.withOpacity(0.08),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: iconColor.withOpacity(0.2),
+                    width: 1.5,
+                  ),
+                ),
+                child: Icon(icon, color: iconColor, size: 24),
+              ),
+              const Gap(16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: ParkinoTheme.darkGray,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Gap(4),
+                    Text(
+                      mainValue,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: iconColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Gap(12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: iconColor.withOpacity(0.15),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              subtitle,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: ParkinoTheme.darkGray,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildViewMapButton() {
     return ScaleTransition(
       scale: _pulseAnimation,
       child: Container(
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [_goldenYellow, Color(0xFFFFB800)],
+            colors: [
+              ParkinoTheme.goldenYellow,
+              ParkinoTheme.moderateGolden,
+            ],
           ),
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: _goldenYellow.withValues(alpha: 0.35),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
-              spreadRadius: 2,
+              color: ParkinoTheme.goldenYellow.withOpacity(0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () {
-              widget.onTabChanged?.call(1);
-            },
+            onTap: () => widget.onTabChanged?.call(1),
             borderRadius: BorderRadius.circular(18),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
+              padding: const EdgeInsets.symmetric(vertical: 18),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(
                     Icons.map_rounded,
-                    color: _primaryDarkBlue,
-                    size: 26,
+                    color: ParkinoTheme.primaryDarkBlue,
+                    size: 24,
                   ),
-                  const SizedBox(width: 14),
-                  const Text(
-                    'VIEW PARKING MAP',
-                    style: TextStyle(
-                      fontSize: 16,
+                  const Gap(12),
+                  Text(
+                    AppLocalizations.t('view_parking_map'),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: ParkinoTheme.primaryDarkBlue,
                       fontWeight: FontWeight.w800,
-                      color: _primaryDarkBlue,
-                      letterSpacing: 1.2,
+                      letterSpacing: 0.8,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const Gap(8),
                   const Icon(
                     Icons.arrow_forward_rounded,
-                    color: _primaryDarkBlue,
-                    size: 22,
+                    color: ParkinoTheme.primaryDarkBlue,
+                    size: 20,
                   ),
                 ],
               ),
@@ -562,3 +609,5 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 }
+
+

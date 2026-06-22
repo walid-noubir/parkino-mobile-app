@@ -6,13 +6,13 @@ import '../../navigation/main_navigation.dart';
 import '../../localization/app_localizations.dart';
 import '../../widgets/language_button.dart';
 import '../../widgets/password_validation_widgets.dart';
+import '../../widgets/modern_widgets.dart';
 import '../../services/password_validation_service.dart';
 import '../../providers/firebase_auth_provider.dart';
+import '../../providers/language_provider.dart';
+import '../../theme/parkino_theme.dart';
 
-/// SignInScreen widget for user authentication
-/// 
-/// Provides a complete authentication interface with email/password validation,
-/// state management, and responsive design following Parkino brand guidelines.
+/// SignInScreen - Modern authentication interface with glassmorphism
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
@@ -20,24 +20,19 @@ class SignInScreen extends StatefulWidget {
   State<SignInScreen> createState() => _SignInScreenState();
 }
 
-/// State class for SignInScreen
-/// Manages form validation, authentication state, and animations
 class _SignInScreenState extends State<SignInScreen>
     with TickerProviderStateMixin {
-  // Form and Controllers
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final FocusNode _emailFocusNode = FocusNode();
   final FocusNode _passwordFocusNode = FocusNode();
 
-  // Form state variables
   bool _obscurePassword = true;
   bool _rememberMe = false;
   bool _isLoading = false;
   String? _errorMessage;
 
-  // Animation controllers
   late AnimationController _fadeAnimationController;
   late AnimationController _scaleAnimationController;
   late Animation<double> _fadeInAnimation;
@@ -53,44 +48,30 @@ class _SignInScreenState extends State<SignInScreen>
     _setupFocusListeners();
   }
 
-  /// Initialize all animation controllers and animations
   void _initializeAnimations() {
     _fadeAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _scaleAnimationController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
 
-    _scaleAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-
     _fadeInAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _fadeAnimationController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _fadeAnimationController, curve: Curves.easeIn),
     );
-
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _scaleAnimationController,
-        curve: Curves.easeOutBack,
-      ),
+    _scaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(parent: _scaleAnimationController, curve: Curves.easeOutCubic),
     );
 
     _fadeAnimationController.forward();
     _scaleAnimationController.forward();
   }
 
-  /// Setup focus node listeners for real-time validation feedback
   void _setupFocusListeners() {
-    _emailFocusNode.addListener(() {
-      setState(() {});
-    });
-    _passwordFocusNode.addListener(() {
-      setState(() {});
-    });
+    _emailFocusNode.addListener(() => setState(() {}));
+    _passwordFocusNode.addListener(() => setState(() {}));
   }
 
   @override
@@ -104,109 +85,68 @@ class _SignInScreenState extends State<SignInScreen>
     super.dispose();
   }
 
-  /// Validate email format
   String? _validateEmail(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'Email address is required';
     }
-
-    final emailRegex = RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    );
-
-    if (!emailRegex.hasMatch(value.trim())) {
-      return 'Please enter a valid email address';
-    }
-    return null;
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    return emailRegex.hasMatch(value.trim()) ? null : 'Please enter a valid email address';
   }
 
-  /// Validate password strength and requirements
   String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Password is required';
-    }
-
-    if (value.length < 8) {
-      return 'Password must be at least 8 characters';
-    }
-
-    if (!RegExp(r'[A-Z]').hasMatch(value)) {
-      return 'Password must contain at least one uppercase letter';
-    }
-
-    if (!RegExp(r'[a-z]').hasMatch(value)) {
-      return 'Password must contain at least one lowercase letter';
-    }
-
-    if (!RegExp(r'[0-9]').hasMatch(value)) {
-      return 'Password must contain at least one number';
-    }
-
+    if (value == null || value.isEmpty) return 'Password is required';
+    if (value.length < 8) return 'Password must be at least 8 characters';
+    if (!RegExp(r'[A-Z]').hasMatch(value)) return 'Password must contain at least one uppercase letter';
+    if (!RegExp(r'[a-z]').hasMatch(value)) return 'Password must contain at least one lowercase letter';
+    if (!RegExp(r'[0-9]').hasMatch(value)) return 'Password must contain at least one number';
     return null;
   }
 
-  /// Calculate password strength (0.0 to 1.0)
-  double _calculatePasswordStrength(String password) {
-    if (password.isEmpty) return 0.0;
-    if (password.length < 8) return 0.25;
-
-    double strength = 0.25;
-    if (RegExp(r'[a-z]').hasMatch(password)) strength += 0.15;
-    if (RegExp(r'[A-Z]').hasMatch(password)) strength += 0.15;
-    if (RegExp(r'[0-9]').hasMatch(password)) strength += 0.15;
-    if (RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) strength += 0.20;
-
-    return strength.clamp(0.0, 1.0);
-  }
-
-  /// Get password strength indicator color
-  Color _getPasswordStrengthColor(double strength) {
-    if (strength < 0.4) return Colors.red;
-    if (strength < 0.7) return Colors.orange;
-    return Colors.green;
-  }
-
-  /// Get password strength text
-  String _getPasswordStrengthText(double strength) {
-    if (strength < 0.4) return 'Weak';
-    if (strength < 0.7) return 'Fair';
-    return 'Strong';
-  }
-
-  /// Handle sign-in logic
   Future<void> _signIn() async {
-    _clearError();
-
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    final authProvider = context.read<FirebaseAuthProvider>();
-    authProvider.clearError();
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-    final success = await authProvider.signIn(
-      email: _emailController.text.trim(),
-      password: _passwordController.text,
-    );
+    try {
+      final authProvider = context.read<FirebaseAuthProvider>();
+      final success = await authProvider.signIn(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (success) {
-      _showSuccessSnackbar('Sign in successful!');
-      _navigator();
-    } else {
-      setState(() {
-        _errorMessage = authProvider.errorMessage;
-      });
+      if (success) {
+        _showSuccessSnackbar(AppLocalizations.t('sign_in_successful'));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainNavigation()),
+        );
+      } else {
+        setState(() {
+          _errorMessage = authProvider.errorMessage ?? AppLocalizations.t('sign_in_failed');
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'An error occurred: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  /// Handle forgot password action
   void _handleForgotPassword() {
     _showForgotPasswordDialog();
   }
 
-  /// Show forgot password dialog
   void _showForgotPasswordDialog() {
     final TextEditingController resetEmailController = TextEditingController();
     bool isLoading = false;
@@ -216,7 +156,7 @@ class _SignInScreenState extends State<SignInScreen>
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Reset Password'),
+          title: Text(AppLocalizations.t('reset_password')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -290,67 +230,59 @@ class _SignInScreenState extends State<SignInScreen>
           actions: [
             TextButton(
               onPressed: isLoading ? null : () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.t('cancel')),
             ),
             ElevatedButton(
-              onPressed: isLoading
-                  ? null
-                  : () async {
-                      final email = resetEmailController.text.trim();
+              onPressed: isLoading ? null : () async {
+                final email = resetEmailController.text.trim();
 
-                      // Validate email
-                      if (email.isEmpty) {
-                        setDialogState(() {
-                          errorMessage = 'Please enter your email address';
-                        });
-                        return;
-                      }
+                if (email.isEmpty) {
+                  setDialogState(() {
+                    errorMessage = 'Please enter your email address';
+                  });
+                  return;
+                }
 
-                      if (!PasswordValidationService.isValidEmail(email)) {
-                        setDialogState(() {
-                          errorMessage = 'Please enter a valid email address';
-                        });
-                        return;
-                      }
+                if (!PasswordValidationService.isValidEmail(email)) {
+                  setDialogState(() {
+                    errorMessage = 'Please enter a valid email address';
+                  });
+                  return;
+                }
 
-                      setDialogState(() {
-                        isLoading = true;
-                        errorMessage = null;
-                      });
+                setDialogState(() {
+                  isLoading = true;
+                  errorMessage = null;
+                });
 
-                      try {
-                        // Send password reset email using Firebase
-                        await FirebaseAuth.instance
-                            .sendPasswordResetEmail(email: email);
+                try {
+                  await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
 
-                        if (!mounted) return;
+                  if (!mounted) return;
 
-                        Navigator.pop(context);
-                        _showSuccessSnackbar(
-                          'Password reset link sent to $email\nCheck your inbox!',
-                        );
-                      } on FirebaseAuthException catch (e) {
-                        setDialogState(() {
-                          isLoading = false;
-                          errorMessage = e.message ??
-                              'Failed to send password reset email';
-                        });
-                      } catch (e) {
-                        setDialogState(() {
-                          isLoading = false;
-                          errorMessage = 'An error occurred. Please try again.';
-                        });
-                      }
-                    },
+                  Navigator.pop(context);
+                  _showSuccessSnackbar(
+                    'Password reset link sent to $email\nCheck your inbox!',
+                  );
+                } on FirebaseAuthException catch (e) {
+                  setDialogState(() {
+                    isLoading = false;
+                    errorMessage = e.message ?? 'Failed to send password reset email';
+                  });
+                } catch (e) {
+                  setDialogState(() {
+                    isLoading = false;
+                    errorMessage = 'An error occurred. Please try again.';
+                  });
+                }
+              },
               child: isLoading
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Send Reset Link'),
+                  : Text(AppLocalizations.t('send_reset_link')),
             ),
           ],
         ),
@@ -358,26 +290,6 @@ class _SignInScreenState extends State<SignInScreen>
     );
   }
 
-  /// Clear error message
-  void _clearError() {
-    if (_errorMessage != null) {
-      setState(() {
-        _errorMessage = null;
-      });
-    }
-  }
-
-  /// Handle authentication errors
-  void _handleAuthError(String error) {
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = false;
-      _errorMessage = error;
-    });
-  }
-
-  /// Show success snackbar
   void _showSuccessSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -394,24 +306,19 @@ class _SignInScreenState extends State<SignInScreen>
     );
   }
 
-  /// Navigate to main navigation page
-  void _navigator() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const MainNavigation(),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    // Watch language provider - this triggers rebuild when language changes
+    final currentLocale = context.watch<LanguageProvider>().locale;
+    
     final mediaQuery = MediaQuery.of(context);
     final isSmallScreen = mediaQuery.size.height < 600;
     final paddingVertical = isSmallScreen ? 30.0 : 60.0;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      // Use locale in key to ensure complete widget rebuild
+      key: ValueKey(currentLocale),
+      backgroundColor: ParkinoTheme.white,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -453,7 +360,6 @@ class _SignInScreenState extends State<SignInScreen>
     );
   }
 
-  /// Build header section with logo and title
   Widget _buildHeader() {
     return Column(
       children: [
@@ -495,12 +401,11 @@ class _SignInScreenState extends State<SignInScreen>
     );
   }
 
-  /// Build form card containing all input fields
   Widget _buildFormCard() {
     return Container(
       padding: const EdgeInsets.all(30),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ParkinoTheme.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -526,7 +431,7 @@ class _SignInScreenState extends State<SignInScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Welcome to Parkino',
+              AppLocalizations.t('sign_in_welcome'),
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],
@@ -541,10 +446,6 @@ class _SignInScreenState extends State<SignInScreen>
             _buildEmailField(),
             const SizedBox(height: 20),
             _buildPasswordField(),
-            const SizedBox(height: 12),
-            _buildPasswordStrengthIndicator(),
-            const SizedBox(height: 12),
-            _buildPasswordRequirements(),
             const SizedBox(height: 20),
             _buildFormOptions(),
             const SizedBox(height: 30),
@@ -555,7 +456,6 @@ class _SignInScreenState extends State<SignInScreen>
     );
   }
 
-  /// Build error banner
   Widget _buildErrorBanner() {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -582,7 +482,6 @@ class _SignInScreenState extends State<SignInScreen>
     );
   }
 
-  /// Build email input field
   Widget _buildEmailField() {
     return TextFormField(
       controller: _emailController,
@@ -607,7 +506,6 @@ class _SignInScreenState extends State<SignInScreen>
     );
   }
 
-  /// Build password input field
   Widget _buildPasswordField() {
     return TextFormField(
       controller: _passwordController,
@@ -649,29 +547,6 @@ class _SignInScreenState extends State<SignInScreen>
     );
   }
 
-  /// Build password strength indicator
-  Widget _buildPasswordStrengthIndicator() {
-    if (_passwordController.text.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return PasswordStrengthIndicator(
-      password: _passwordController.text,
-    );
-  }
-
-  /// Build password requirements checklist
-  Widget _buildPasswordRequirements() {
-    if (_passwordController.text.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return PasswordRequirementsWidget(
-      password: _passwordController.text,
-    );
-  }
-
-  /// Build form options (Remember me + Forgot password)
   Widget _buildFormOptions() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -689,7 +564,7 @@ class _SignInScreenState extends State<SignInScreen>
               ),
               Flexible(
                 child: Text(
-                  'Remember me',
+                  AppLocalizations.t('remember_me'),
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
@@ -698,13 +573,12 @@ class _SignInScreenState extends State<SignInScreen>
         ),
         TextButton(
           onPressed: _handleForgotPassword,
-          child: const Text('Forgot Password?'),
+          child: Text(AppLocalizations.t('forgot_password')),
         ),
       ],
     );
   }
 
-  /// Build sign-in button
   Widget _buildSignInButton() {
     return ElevatedButton(
       onPressed: _isLoading ? null : _signIn,
@@ -717,24 +591,23 @@ class _SignInScreenState extends State<SignInScreen>
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
             )
-          : const Text('Sign In'),
+          : Text(AppLocalizations.t('sign_in')),
     );
   }
 
-  /// Build footer links
   Widget _buildFooterLinks() {
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              "Don't have an account? ",
-              style: TextStyle(
-                color: _primaryDarkBlue.withValues(alpha: 0.7),
-                fontSize: 14,
+              Text(
+                AppLocalizations.t('dont_have_account'),
+                style: TextStyle(
+                  color: _primaryDarkBlue.withValues(alpha: 0.7),
+                  fontSize: 14,
+                ),
               ),
-            ),
             TextButton(
               onPressed: () {
                 Navigator.push(
@@ -744,9 +617,9 @@ class _SignInScreenState extends State<SignInScreen>
                   ),
                 );
               },
-              child: const Text(
-                'Create an account',
-                style: TextStyle(
+              child: Text(
+                AppLocalizations.t('create_account'),
+                style: const TextStyle(
                   color: Color(0xFFFFC107),
                   fontWeight: FontWeight.bold,
                   fontSize: 14,

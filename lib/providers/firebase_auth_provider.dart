@@ -41,12 +41,16 @@ class FirebaseAuthProvider extends ChangeNotifier {
         password: password,
       );
 
-      print('✅ User created in Auth: ${userCredential.user?.email}');
+      print(' User created in Auth: ${userCredential.user?.email}');
 
       // Update user profile with username
       await userCredential.user?.updateDisplayName(username);
       
-      // Create user document in Firestore
+      // Send email verification
+      await userCredential.user?.sendEmailVerification();
+      print(' Verification email sent to: ${userCredential.user?.email}');
+      
+      // Create user document in Firestore with complete schema
       try {
         await _firestore.collection('users').doc(userCredential.user!.uid).set({
           'uid': userCredential.user!.uid,
@@ -54,12 +58,18 @@ class FirebaseAuthProvider extends ChangeNotifier {
           'username': username,
           'displayName': username,
           'phone': phone,
+          'photoUrl': null, // Placeholder for profile image
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
-        });
-        print('✅ User document created in Firestore with phone: $phone');
+        }, SetOptions(merge: false));
+        print(' User document created in Firestore');
+        print('   Path: /users/${userCredential.user!.uid}');
+        print('   Email: $email');
+        print('   Username: $username');
+        print('   Phone: $phone');
       } catch (firestoreError) {
-        print('❌ Firestore error: $firestoreError');
+        print(' Firestore error: $firestoreError');
+        print('   Error type: ${firestoreError.runtimeType}');
         // Si Firestore échoue, on supprime l'utilisateur créé à la place
         await userCredential.user?.delete();
         _errorMessage = 'Failed to save user data. Please try again.';
@@ -72,19 +82,19 @@ class FirebaseAuthProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       
-      print('✅ User signed up successfully: ${_user?.email}');
+      print(' User signed up successfully: ${_user?.email}');
       return true;
     } on FirebaseAuthException catch (e) {
       _errorMessage = _getErrorMessage(e.code);
       _isLoading = false;
       notifyListeners();
-      print('❌ Sign up error: ${e.code} - ${e.message}');
+      print(' Sign up error: ${e.code} - ${e.message}');
       return false;
     } catch (e) {
       _errorMessage = 'An unexpected error occurred';
       _isLoading = false;
       notifyListeners();
-      print('❌ Unexpected error: $e');
+      print(' Unexpected error: $e');
       return false;
     }
   }
@@ -108,19 +118,19 @@ class FirebaseAuthProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       
-      print('✅ User signed in successfully: ${_user?.email}');
+      print(' User signed in successfully: ${_user?.email}');
       return true;
     } on FirebaseAuthException catch (e) {
       _errorMessage = _getErrorMessage(e.code);
       _isLoading = false;
       notifyListeners();
-      print('❌ Sign in error: ${e.code} - ${e.message}');
+      print(' Sign in error: ${e.code} - ${e.message}');
       return false;
     } catch (e) {
       _errorMessage = 'An unexpected error occurred';
       _isLoading = false;
       notifyListeners();
-      print('❌ Unexpected error: $e');
+      print(' Unexpected error: $e');
       return false;
     }
   }
@@ -132,10 +142,10 @@ class FirebaseAuthProvider extends ChangeNotifier {
       _user = null;
       _errorMessage = null;
       notifyListeners();
-      print('✅ User signed out');
+      print(' User signed out');
     } catch (e) {
       _errorMessage = 'Error signing out';
-      print('❌ Sign out error: $e');
+      print(' Sign out error: $e');
     }
   }
 

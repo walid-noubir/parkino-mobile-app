@@ -6,6 +6,8 @@ import '../../widgets/language_button.dart';
 import '../../widgets/password_validation_widgets.dart';
 import '../../services/password_validation_service.dart';
 import '../../providers/firebase_auth_provider.dart';
+import '../../providers/language_provider.dart';
+import '../../theme/parkino_theme.dart';
 
 /// SignUpScreen widget for user registration
 /// 
@@ -129,7 +131,7 @@ class _SignUpScreenState extends State<SignUpScreen>
     if (!mounted) return;
 
     if (success) {
-      _showSuccessSnackbar('Account created successfully! ✅');
+      _showSuccessSnackbar('Account created successfully!');
       Navigator.pop(context);
     } else {
       setState(() {
@@ -153,7 +155,7 @@ class _SignUpScreenState extends State<SignUpScreen>
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Reset Password'),
+          title: Text(AppLocalizations.t('reset_password')),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -227,7 +229,7 @@ class _SignUpScreenState extends State<SignUpScreen>
           actions: [
             TextButton(
               onPressed: isLoading ? null : () => Navigator.pop(context),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.t('cancel')),
             ),
             ElevatedButton(
               onPressed: isLoading
@@ -287,7 +289,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                         strokeWidth: 2,
                       ),
                     )
-                  : const Text('Send Reset Link'),
+                  : Text(AppLocalizations.t('send_reset_link')),
             ),
           ],
         ),
@@ -314,12 +316,15 @@ class _SignUpScreenState extends State<SignUpScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Watch language provider - this triggers rebuild when language changes
+    final currentLocale = context.watch<LanguageProvider>().locale;
+    
     final mediaQuery = MediaQuery.of(context);
     final isSmallScreen = mediaQuery.size.height < 600;
     final paddingVertical = isSmallScreen ? 20.0 : 30.0;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: ParkinoTheme.white,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -391,9 +396,9 @@ class _SignUpScreenState extends State<SignUpScreen>
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'Create Your Account',
-          style: TextStyle(
+        Text(
+          AppLocalizations.t('sign_up_welcome'),
+          style: const TextStyle(
             fontSize: 14,
             color: Color(0xFF999999),
             fontWeight: FontWeight.w400,
@@ -408,7 +413,7 @@ class _SignUpScreenState extends State<SignUpScreen>
     return Container(
       padding: const EdgeInsets.all(25),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ParkinoTheme.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -423,9 +428,9 @@ class _SignUpScreenState extends State<SignUpScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Sign Up',
-              style: TextStyle(
+            Text(
+              AppLocalizations.t('sign_up'),
+              style: const TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
                 color: _primaryDarkBlue,
@@ -434,7 +439,7 @@ class _SignUpScreenState extends State<SignUpScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Join Parkino today',
+              AppLocalizations.t('join_parkino_today'),
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[600],
@@ -603,8 +608,8 @@ class _SignUpScreenState extends State<SignUpScreen>
       focusNode: _passwordFocusNode,
       obscureText: _obscurePassword,
       decoration: InputDecoration(
-        labelText: 'Password',
-        hintText: 'Enter a strong password',
+        labelText: AppLocalizations.t('password'),
+        hintText: AppLocalizations.t('password_hint'),
         prefixIcon: const Icon(Icons.lock_outline),
         suffixIcon: IconButton(
           icon: Icon(
@@ -659,8 +664,8 @@ class _SignUpScreenState extends State<SignUpScreen>
       focusNode: _confirmPasswordFocusNode,
       obscureText: _obscureConfirmPassword,
       decoration: InputDecoration(
-        labelText: 'Confirm Password',
-        hintText: 'Re-enter your password',
+        labelText: AppLocalizations.t('confirm_password'),
+        hintText: AppLocalizations.t('password_hint'),
         prefixIcon: const Icon(Icons.lock_outline),
         suffixIcon: IconButton(
           icon: Icon(
@@ -701,7 +706,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
             )
-          : const Text('Sign Up'),
+          : Text(AppLocalizations.t('sign_up')),
     );
   }
 
@@ -713,7 +718,7 @@ class _SignUpScreenState extends State<SignUpScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Already have an account? ',
+              AppLocalizations.t('already_have_account'),
             style: TextStyle(
               color: Colors.grey[700],
               fontSize: 14,
@@ -723,9 +728,9 @@ class _SignUpScreenState extends State<SignUpScreen>
             onPressed: () {
               Navigator.pop(context);
             },
-            child: const Text(
-              'Sign In',
-              style: TextStyle(
+            child: Text(
+              AppLocalizations.t('sign_in'),
+              style: const TextStyle(
                 color: _primaryDarkBlue,
                 fontWeight: FontWeight.bold,
                 fontSize: 14,

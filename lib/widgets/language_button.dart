@@ -22,24 +22,26 @@ class _LanguageButtonState extends State<LanguageButton> {
     showModalBottomSheet(
       context: context,
       useRootNavigator: true,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      isScrollControlled: false,
       builder: (sheetContext) {
         final currentLanguage = context.read<LanguageProvider>().locale;
         return LanguageSettingsSheet(
           currentLanguage: currentLanguage,
           onLanguageChanged: (String newLocale) {
-            try {
-              if (Navigator.of(sheetContext).canPop()) {
-                Navigator.of(sheetContext).pop();
-              }
-            } catch (e) {
-              // Ignore navigation errors
+            // Change the language FIRST
+            if (mounted) {
+              context.read<LanguageProvider>().setLocale(newLocale);
             }
             
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              try {
-                context.read<LanguageProvider>().setLocale(newLocale);
-              } catch (e) {
-                // Ignore language change errors
+            // Close the sheet AFTER the rebuild to avoid Navigator conflicts
+            Future.delayed(const Duration(milliseconds: 200), () {
+              if (Navigator.of(sheetContext, rootNavigator: true).canPop()) {
+                try {
+                  Navigator.of(sheetContext, rootNavigator: true).pop();
+                } catch (e) {
+                  // Ignore if the navigator is already disposed
+                }
               }
             });
           },
